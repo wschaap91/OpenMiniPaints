@@ -16,7 +16,9 @@ export default defineSchema({
   }).searchIndex("by_name_brand", {
     searchField: "name",
     filterFields: ["brand"],
-  }),
+  })
+  .index("by_barcode", ["barcode"])
+  .index("by_brandCode", ["brandCode"]),
 
   apiKeys: defineTable({
     keyHash: v.string(),

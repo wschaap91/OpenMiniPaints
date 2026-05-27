@@ -59,7 +59,11 @@ function unauthorizedResponse(): Response {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "x-api-key, Content-Type",
+    },
   });
 }
 
@@ -140,14 +144,14 @@ export const lookupPaint = internalQuery({
     if (barcode) {
       const byBarcode = await ctx.db
         .query("catalogPaints")
-        .filter((q) => q.eq(q.field("barcode"), barcode))
+        .withIndex("by_barcode", (q) => q.eq("barcode", barcode))
         .first();
       if (byBarcode) return byBarcode as Paint;
     }
     if (code) {
       const byCode = await ctx.db
         .query("catalogPaints")
-        .filter((q) => q.eq(q.field("brandCode"), code))
+        .withIndex("by_brandCode", (q) => q.eq("brandCode", code))
         .first();
       if (byCode) return byCode as Paint;
     }
