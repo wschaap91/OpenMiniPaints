@@ -149,3 +149,4 @@ convex/_generated/
 # Scraped paint data (raw, unreviewed — not committed)
 data/scraped/
 data/curated/
+data/images/
