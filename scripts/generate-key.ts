@@ -35,18 +35,27 @@ async function main() {
   const keyHash = createHash("sha256").update(rawKey).digest("hex");
 
   // Call the internal Convex mutation via the CLI.
-  // `convex run` supports internal functions when CONVEX_DEPLOY_KEY is set.
+  // Unset CONVEX_DEPLOY_KEY so `convex run` targets the dev deployment
+  // identified by CONVEX_DEPLOYMENT in .env.local rather than a preview deployment.
   const args = JSON.stringify({ keyHash, label });
+  // Unset CONVEX_DEPLOY_KEY (may point to a different project) and explicitly
+  // set CONVEX_DEPLOYMENT so `convex run` always targets the right deployment.
+  const deployment = process.env.CONVEX_DEPLOYMENT ?? "dev:lovable-possum-594";
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    CONVEX_DEPLOY_KEY: "",          // empty string overrides .env.local value
+    CONVEX_DEPLOYMENT: deployment,  // explicitly target the right deployment
+  };
   try {
     execSync(`npx convex run apiKeys:createKey '${args}'`, {
       stdio: "inherit",
-      env: { ...process.env },
+      env,
     });
   } catch (err) {
     console.error(
       "\nFailed to insert key into Convex. Make sure:\n" +
-        "  • You have run `npx convex dev --configure new --project open-mini-paints`\n" +
-        "  • CONVEX_DEPLOY_KEY is set in your environment\n"
+        "  • CONVEX_DEPLOYMENT is set in .env.local\n" +
+        "  • The deployment is reachable (run `npx convex dev --once` first if needed)\n"
     );
     process.exit(1);
   }
