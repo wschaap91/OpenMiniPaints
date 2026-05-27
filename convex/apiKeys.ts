@@ -1,4 +1,4 @@
-import { internalMutation } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
@@ -9,6 +9,16 @@ import { v } from "convex/values";
  * the `convex run` CLI command, which can call internal functions directly
  * via the Convex admin API using CONVEX_DEPLOY_KEY.
  */
+export const getByHash = internalQuery({
+  args: { keyHash: v.string() },
+  handler: async (ctx, { keyHash }) => {
+    return await ctx.db
+      .query("apiKeys")
+      .withIndex("by_keyHash", (q) => q.eq("keyHash", keyHash))
+      .first();
+  },
+});
+
 export const createKey = internalMutation({
   args: {
     keyHash: v.string(),
