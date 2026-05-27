@@ -48,8 +48,28 @@ const SEED: Paint[] = [
 
 async function main() {
   const html = await tryFetch(SOURCE_URL);
-  if (html && html.toLowerCase().includes("kimera")) {
-    // Could parse Shopify product JSON here; for now the seed is authoritative.
+  if (html) {
+    try {
+      // Shopify stores expose a /products.json endpoint; the shop page may also
+      // embed a JSON blob. Attempt JSON parse first.
+      const data = JSON.parse(html);
+      const products = (data as any)?.products ?? (Array.isArray(data) ? data : null);
+      if (Array.isArray(products) && products.length > 0) {
+        const parsed: Paint[] = products.map((p: any) => ({
+          brand: "Kimera Colors",
+          name: String(p.title ?? p.name ?? "").trim(),
+          paintType: "pure-pigment",
+          brandCode: p.variants?.[0]?.sku ?? p.sku,
+        })).filter((p) => p.name);
+        if (parsed.length > 0) {
+          writeScraped("kimera", parsed, "live");
+          return;
+        }
+      }
+    } catch {
+      // Not JSON — fall through
+    }
+    console.log("Kimera: no live data parsed, using seed");
   }
   writeScraped("kimera", SEED, "seed");
 }

@@ -45,8 +45,10 @@ async function main() {
           brand: "Army Painter",
           name: String(p.title ?? "").trim(),
           paintType: "warpaints-fanatic",
-          brandCode: p.variants?.[0]?.sku,
-          barcode: p.variants?.[0]?.barcode,
+          brandCode: p.variants?.[0]?.sku ?? undefined,
+          barcode: p.variants?.[0]?.barcode ?? undefined,
+          // hexColor, finish, transparency, specialType are not available from
+          // the Shopify products.json API — omitted intentionally.
         })).filter((p) => p.name);
         if (paints.length > 0) {
           writeScraped("army-painter", paints, "live");

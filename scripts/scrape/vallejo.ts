@@ -30,8 +30,26 @@ async function main() {
   // The Vallejo product page is rendered with WooCommerce and not easily parsed
   // without a DOM parser. Treat any non-empty response as "scrape attempted" but
   // still use seed data unless we can find a structured chunk.
-  if (html && html.includes("model-color")) {
-    // Could attempt regex extraction here. For now fall through to seed.
+  if (html) {
+    try {
+      // Attempt to extract product entries from WooCommerce HTML.
+      // Each product card typically has a <h2 class="woocommerce-loop-product__title">
+      // and a data-product_id attribute we can use to detect structured content.
+      const titleMatches = html.match(/<h2[^>]+woocommerce-loop-product__title[^>]*>([^<]+)<\/h2>/gi);
+      if (titleMatches && titleMatches.length > 0) {
+        const parsed: Paint[] = titleMatches.map((m) => {
+          const name = m.replace(/<[^>]+>/g, "").trim();
+          return { brand: "Vallejo", name, paintType: "model-color" };
+        }).filter((p) => p.name);
+        if (parsed.length > 0) {
+          writeScraped("vallejo", parsed, "live");
+          return;
+        }
+      }
+    } catch {
+      // parsing failed
+    }
+    console.log("Vallejo: live fetch returned non-parseable HTML, using seed");
   }
   writeScraped("vallejo", SEED, "seed");
 }

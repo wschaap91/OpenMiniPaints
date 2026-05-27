@@ -28,8 +28,27 @@ const SEED: Paint[] = [
 
 async function main() {
   const html = await tryFetch(SOURCE_URL);
-  if (html && html.includes("AK11")) {
-    // Could parse product cards here. For now, seed.
+  if (html) {
+    try {
+      // AK Interactive may return JSON product data; attempt to parse it.
+      const data = JSON.parse(html);
+      const products = (data as any)?.products ?? (Array.isArray(data) ? data : null);
+      if (Array.isArray(products) && products.length > 0) {
+        const parsed: Paint[] = products.map((p: any) => ({
+          brand: "AK Interactive",
+          name: String(p.title ?? p.name ?? "").trim(),
+          paintType: "3rd-gen",
+          brandCode: p.sku ?? p.variants?.[0]?.sku,
+        })).filter((p) => p.name);
+        if (parsed.length > 0) {
+          writeScraped("ak-interactive", parsed, "live");
+          return;
+        }
+      }
+    } catch {
+      // Not JSON — fall through
+    }
+    console.log("AK Interactive: live fetch returned non-parseable response, using seed");
   }
   writeScraped("ak-interactive", SEED, "seed");
 }
