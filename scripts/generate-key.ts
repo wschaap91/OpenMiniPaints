@@ -38,14 +38,9 @@ async function main() {
   // Unset CONVEX_DEPLOY_KEY so `convex run` targets the dev deployment
   // identified by CONVEX_DEPLOYMENT in .env.local rather than a preview deployment.
   const args = JSON.stringify({ keyHash, label });
-  // Unset CONVEX_DEPLOY_KEY (may point to a different project) and explicitly
-  // set CONVEX_DEPLOYMENT so `convex run` always targets the right deployment.
-  const deployment = process.env.CONVEX_DEPLOYMENT ?? "dev:lovable-possum-594";
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    CONVEX_DEPLOY_KEY: "",          // empty string overrides .env.local value
-    CONVEX_DEPLOYMENT: deployment,  // explicitly target the right deployment
-  };
+  // Pass environment through as-is — CONVEX_DEPLOY_KEY and CONVEX_DEPLOYMENT
+  // from .env.local will be picked up by `convex run` automatically.
+  const env: NodeJS.ProcessEnv = { ...process.env };
   try {
     execSync(`npx convex run apiKeys:createKey '${args}'`, {
       stdio: "inherit",
