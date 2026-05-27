@@ -15,6 +15,7 @@ const paintArgs = {
   transparency: v.optional(v.string()),
   finish: v.optional(v.string()),
   specialType: v.optional(v.string()),
+  imageUrl: v.optional(v.string()),
 };
 
 /**

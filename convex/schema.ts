@@ -12,6 +12,7 @@ export default defineSchema({
     transparency: v.optional(v.string()),
     finish: v.optional(v.string()),
     specialType: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
   }).searchIndex("by_name_brand", {
     searchField: "name",
     filterFields: ["brand"],
