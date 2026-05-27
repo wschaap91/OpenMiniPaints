@@ -15,13 +15,22 @@
  * How it works:
  *   This script generates the raw key + hash locally, then delegates the
  *   database insert to `npx convex run apiKeys:createKey` which can call
- *   internal Convex mutations via the admin API.
+ *   internal Convex mutations via the admin API. The CLI is invoked via
+ *   spawnSync with an explicit argument array — no shell is involved, so
+ *   the label value cannot inject shell commands.
  */
 
 import { createHash, randomBytes } from "node:crypto";
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 
 async function main() {
+  if (process.env.CI) {
+    console.error(
+      "generate-key must not be run in CI — key would be exposed in build logs."
+    );
+    process.exit(1);
+  }
+
   const label = process.argv[2];
   if (!label) {
     console.error("Usage: npx tsx scripts/generate-key.ts <label>");
@@ -35,18 +44,16 @@ async function main() {
   const keyHash = createHash("sha256").update(rawKey).digest("hex");
 
   // Call the internal Convex mutation via the CLI.
-  // Unset CONVEX_DEPLOY_KEY so `convex run` targets the dev deployment
-  // identified by CONVEX_DEPLOYMENT in .env.local rather than a preview deployment.
+  // spawnSync with an explicit argument array avoids shell invocation entirely,
+  // preventing shell injection via the label argument.
+  // CONVEX_DEPLOY_KEY and CONVEX_DEPLOYMENT from .env.local are picked up
+  // automatically from the inherited process environment.
   const args = JSON.stringify({ keyHash, label });
-  // Pass environment through as-is — CONVEX_DEPLOY_KEY and CONVEX_DEPLOYMENT
-  // from .env.local will be picked up by `convex run` automatically.
-  const env: NodeJS.ProcessEnv = { ...process.env };
-  try {
-    execSync(`npx convex run apiKeys:createKey '${args}'`, {
-      stdio: "inherit",
-      env,
-    });
-  } catch (err) {
+  const result = spawnSync("npx", ["convex", "run", "apiKeys:createKey", args], {
+    stdio: "inherit",
+  });
+
+  if (result.status !== 0) {
     console.error(
       "\nFailed to insert key into Convex. Make sure:\n" +
         "  • CONVEX_DEPLOYMENT is set in .env.local\n" +

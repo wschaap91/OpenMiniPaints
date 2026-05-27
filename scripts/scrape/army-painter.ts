@@ -4,7 +4,7 @@
 // /products/<handle>.json. Live scraping is attempted; falls back to a curated
 // seed sample covering Warpaints Fanatic and Speedpaint 2.0.
 
-import { Paint, tryFetch, writeScraped } from "./_common";
+import { Paint, PaintType, tryFetch, writeScraped } from "./_common";
 
 const SOURCE_URL =
   "https://www.thearmypainter.com/collections/warpaints-fanatic/products.json?limit=250";
@@ -44,7 +44,7 @@ async function main() {
         const paints: Paint[] = products.map((p: any) => ({
           brand: "Army Painter",
           name: String(p.title ?? "").trim(),
-          paintType: "warpaints-fanatic",
+          paintType: "warpaints-fanatic" as PaintType,
           brandCode: p.variants?.[0]?.sku ?? undefined,
           barcode: p.variants?.[0]?.barcode ?? undefined,
           imageUrl: p.images?.[0]?.src || undefined,

@@ -1,6 +1,7 @@
 import { httpAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { Doc } from "./_generated/dataModel";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -17,6 +18,7 @@ type Paint = {
   transparency?: string;
   finish?: string;
   specialType?: string;
+  imageUrl?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -87,6 +89,8 @@ export const searchPaints = internalQuery({
 export const listBrands = internalQuery({
   args: {},
   handler: async (ctx) => {
+    // Brand counts require scanning all documents. Acceptable for ~400-500 paints.
+    // Future optimisation: maintain a denormalised brands counter document.
     const all = await ctx.db.query("catalogPaints").collect();
     const counts: Record<string, number> = {};
     for (const paint of all) {
@@ -105,32 +109,50 @@ export const listPaints = internalQuery({
     cursor: v.optional(v.string()),
   },
   handler: async (ctx, { brand, paintType, cursor }) => {
-    // Collect all matching documents to get a semantically correct total count.
-    // For ~400-500 paints this is acceptable.
-    let all = await ctx.db.query("catalogPaints").collect() as Paint[];
-
-    if (brand) {
-      all = all.filter((p) => p.brand === brand);
-    }
-    if (paintType) {
-      all = all.filter((p) => p.paintType === paintType);
-    }
-
-    const total = all.length;
     const PAGE_SIZE = 50;
 
-    // Decode cursor as an index into the filtered array.
-    const startIndex = cursor ? parseInt(cursor, 10) : 0;
-    const page = all.slice(startIndex, startIndex + PAGE_SIZE);
-    const nextIndex = startIndex + page.length;
-    const isDone = nextIndex >= total;
-    const continueCursor = isDone ? null : String(nextIndex);
+    // Build base query — use the by_brand index when a brand filter is given
+    // to avoid a full table scan. The by_brand index is defined in schema.ts.
+    const baseQuery = brand
+      ? ctx.db
+          .query("catalogPaints")
+          .withIndex("by_brand", (q) => q.eq("brand", brand))
+      : ctx.db.query("catalogPaints");
+
+    // Collect the filtered set to obtain an accurate total count.
+    // paintType has no dedicated index so we filter in memory.
+    // For ~400-500 paints this is acceptable.
+    const allForCount = await baseQuery.collect();
+    const filteredForCount = paintType
+      ? allForCount.filter((p) => p.paintType === paintType)
+      : allForCount;
+    const total = filteredForCount.length;
+
+    // Use Convex's built-in paginate() for a stable cursor that is not
+    // invalidated by inserts or deletes (unlike a numeric offset).
+    const paginateQuery = brand
+      ? ctx.db
+          .query("catalogPaints")
+          .withIndex("by_brand", (q) => q.eq("brand", brand))
+      : ctx.db.query("catalogPaints");
+
+    const result = await paginateQuery.paginate({
+      cursor: cursor ?? null,
+      numItems: PAGE_SIZE,
+    });
+
+    // Apply paintType post-filter on the fetched page.
+    // Note: this means the page may contain fewer than PAGE_SIZE items when
+    // paintType is active, but cursor stability is preserved.
+    const filteredPage = paintType
+      ? result.page.filter((p) => p.paintType === paintType)
+      : result.page;
 
     return {
-      results: page,
+      results: filteredPage,
       total,
-      isDone,
-      continueCursor,
+      isDone: result.isDone,
+      continueCursor: result.isDone ? null : result.continueCursor,
     };
   },
 });
@@ -146,14 +168,14 @@ export const lookupPaint = internalQuery({
         .query("catalogPaints")
         .withIndex("by_barcode", (q) => q.eq("barcode", barcode))
         .first();
-      if (byBarcode) return byBarcode as Paint;
+      if (byBarcode) return byBarcode;
     }
     if (code) {
       const byCode = await ctx.db
         .query("catalogPaints")
         .withIndex("by_brandCode", (q) => q.eq("brandCode", code))
         .first();
-      if (byCode) return byCode as Paint;
+      if (byCode) return byCode;
     }
     return null;
   },
@@ -174,13 +196,14 @@ export const handleSearch = httpAction(async (ctx, request) => {
     return jsonResponse({ error: "Missing required query param: q" }, 400);
   }
 
-  const paints = (await ctx.runQuery(internal.catalog.searchPaints, {
-    q,
-    brand,
-  })) as Paint[];
+  // Type annotation required to work around TypeScript circularity on same-file ctx.runQuery.
+  const paints: Doc<"catalogPaints">[] = await ctx.runQuery(
+    internal.catalog.searchPaints,
+    { q, brand },
+  );
 
   // Group by brand
-  const grouped: Record<string, Paint[]> = {};
+  const grouped: Record<string, Doc<"catalogPaints">[]> = {};
   for (const paint of paints) {
     if (!grouped[paint.brand]) grouped[paint.brand] = [];
     grouped[paint.brand].push(paint);
@@ -206,11 +229,17 @@ export const handlePaints = httpAction(async (ctx, request) => {
   const paintType = url.searchParams.get("type") ?? undefined;
   const cursor = url.searchParams.get("cursor") ?? undefined;
 
-  const result = (await ctx.runQuery(internal.catalog.listPaints, {
+  // Type annotation required to work around TypeScript circularity on same-file ctx.runQuery.
+  const result: {
+    results: Doc<"catalogPaints">[];
+    total: number;
+    isDone: boolean;
+    continueCursor: string | null;
+  } = await ctx.runQuery(internal.catalog.listPaints, {
     brand,
     paintType,
     cursor,
-  })) as { results: Paint[]; total: number; isDone: boolean; continueCursor: string | null };
+  });
 
   return jsonResponse({
     results: result.results,
@@ -233,10 +262,11 @@ export const handleLookup = httpAction(async (ctx, request) => {
     );
   }
 
-  const paint = (await ctx.runQuery(internal.catalog.lookupPaint, {
-    code,
-    barcode,
-  })) as Paint | null;
+  // Type annotation required to work around TypeScript circularity on same-file ctx.runQuery.
+  const paint: Doc<"catalogPaints"> | null = await ctx.runQuery(
+    internal.catalog.lookupPaint,
+    { code, barcode },
+  );
 
   return jsonResponse({
     results: paint ? [paint] : [],

@@ -3,7 +3,7 @@
 // TODO: scrape acrylicosvallejo.com product listing or the official Vallejo
 // color chart PDF. Falls back to a hand-curated Model Color seed sample.
 
-import { Paint, tryFetch, writeScraped } from "./_common";
+import { Paint, PaintType, tryFetch, writeScraped } from "./_common";
 
 const SOURCE_URL = "https://acrylicosvallejo.com/en/category/hobby/model-color-en/";
 
@@ -81,7 +81,7 @@ async function main() {
       if (titleMatches && titleMatches.length > 0) {
         const parsed: Paint[] = titleMatches.map((m) => {
           const name = m.replace(/<[^>]+>/g, "").trim();
-          return { brand: "Vallejo", name, paintType: "model-color" };
+          return { brand: "Vallejo", name, paintType: "model-color" as PaintType };
         }).filter((p) => p.name);
         const usable = parsed.filter((p) => p.hexColor);
         if (usable.length > 0) {

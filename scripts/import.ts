@@ -56,14 +56,18 @@ function importBrand(brand: string) {
   let totalInserted = 0;
   let totalUpdated = 0;
 
-  // Split into batches to stay within Convex's 32k document-read limit
+  // Split into batches to stay within Convex's per-mutation argument size and execution time limits.
   for (let i = 0; i < paints.length; i += BATCH_SIZE) {
     const batch = paints.slice(i, i + BATCH_SIZE);
     const args = JSON.stringify({ paints: batch });
     const cliArgs = ["convex", "run", "admin:bulkImport", args];
     if (useProd) cliArgs.push("--prod");
 
-    const res = spawnSync("npx", cliArgs, { encoding: "utf-8" });
+    const res = spawnSync("npx", cliArgs, { encoding: "utf-8", timeout: 60_000 });
+    if (res.status === null) {
+      console.error(`${brand}: batch ${Math.floor(i / BATCH_SIZE) + 1} timed out (60s)`);
+      return;
+    }
     if (res.status !== 0) {
       console.error(
         `${brand}: convex run failed (batch ${Math.floor(i / BATCH_SIZE) + 1}, code ${res.status})\n${res.stderr || res.stdout}`,
@@ -75,7 +79,7 @@ function importBrand(brand: string) {
       totalInserted += parsed.inserted ?? 0;
       totalUpdated += parsed.updated ?? 0;
     } catch {
-      // keep going — count will just be 0 for this batch
+      console.warn(`${brand}: could not parse convex run output for batch ${Math.floor(i / BATCH_SIZE) + 1} — counts may be inaccurate. stdout: ${(res.stdout || "").trim()}`);
     }
   }
 

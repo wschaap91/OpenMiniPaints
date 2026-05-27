@@ -32,11 +32,21 @@ function rgbToHex(r: number, g: number, b: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// Helper: detect media type from URL extension
+// ---------------------------------------------------------------------------
+function mediaTypeFromUrl(url: string): "image/jpeg" | "image/png" | "image/webp" {
+  const lower = url.toLowerCase();
+  if (lower.includes(".png") || lower.includes("png")) return "image/png";
+  if (lower.includes(".webp") || lower.includes("webp")) return "image/webp";
+  return "image/jpeg";
+}
+
+// ---------------------------------------------------------------------------
 // Claude Vision fallback
 // ---------------------------------------------------------------------------
 async function visionFallback(
   imagePath: string,
-  context: { name: string; brand: string },
+  context: { name: string; brand: string; imageUrl?: string },
 ): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -46,6 +56,7 @@ async function visionFallback(
 
   const client = new Anthropic({ apiKey });
   const imageData = readFileSync(imagePath).toString("base64");
+  const mediaType = mediaTypeFromUrl(context.imageUrl ?? imagePath);
 
   const prompt = `This is a product image of '${context.name}' by ${context.brand}. Return only the dominant hex color of the paint swatch in the format #RRGGBB. No explanation.`;
 
@@ -65,7 +76,7 @@ async function visionFallback(
                 type: "image",
                 source: {
                   type: "base64",
-                  media_type: "image/jpeg",
+                  media_type: mediaType,
                   data: imageData,
                 },
               },
@@ -90,7 +101,8 @@ async function visionFallback(
         }
         return null;
       }
-      // Any other error: do not throw, return null
+      // Any other error: log and return null
+      console.warn(`  [vision] unexpected error for ${context.name}:`, error instanceof Error ? error.message : error);
       return null;
     }
   }
@@ -103,7 +115,7 @@ async function visionFallback(
 // ---------------------------------------------------------------------------
 export async function extractHex(
   imagePath: string,
-  context: { name: string; brand: string },
+  context: { name: string; brand: string; imageUrl?: string },
 ): Promise<string | null> {
   // Step 1: Try node-vibrant to extract the dominant color
   try {
@@ -123,11 +135,11 @@ export async function extractHex(
         return rgbToHex(r, g, b);
       }
     }
-  } catch {
-    // node-vibrant failed — fall through to Vision
+  } catch (e) {
+    console.warn(`  [vibrant] ${context.name}: ${e instanceof Error ? e.message : e} — falling through to Vision`);
   }
 
   // Step 2: Low-saturation result (likely label/packaging) or vibrant failed
-  // → requires ANTHROPIC_API_KEY; will throw if not set
+  // → requires ANTHROPIC_API_KEY; logs a warning and returns null if not set
   return visionFallback(imagePath, context);
 }

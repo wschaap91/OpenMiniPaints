@@ -8,16 +8,43 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
+export type PaintType =
+  | "base"
+  | "layer"
+  | "shade"
+  | "contrast"
+  | "dry"
+  | "technical"
+  | "model-color"
+  | "game-color"
+  | "model-air"
+  | "3rd-gen"
+  | "pure-pigment"
+  | "metallic"
+  | "complementary"
+  | "transparent"
+  | "white"
+  | "black"
+  | "acrylic"
+  | "warpaints-fanatic"
+  | "speedpaint";
+
+export type Finish = "matte" | "satin" | "metallic";
+
+export type Transparency = "translucent" | "transparent";
+
+export type SpecialType = "metallic";
+
 export interface Paint {
   brand: string;
   name: string;
-  paintType: string;
+  paintType: PaintType;
   hexColor?: string;
   brandCode?: string;
   barcode?: string;
-  transparency?: string;
-  finish?: string;
-  specialType?: string;
+  transparency?: Transparency;
+  finish?: Finish;
+  specialType?: SpecialType;
   imageUrl?: string;
 }
 

@@ -4,7 +4,7 @@
 // scraping is best done via their sitemap + product JSON. Falls back to a
 // hand-curated 3rd Gen sample.
 
-import { Paint, tryFetch, writeScraped } from "./_common";
+import { Paint, PaintType, tryFetch, writeScraped } from "./_common";
 
 const SOURCE_URL = "https://ak-interactive.com/en/3gen-acrylics/";
 
@@ -66,7 +66,7 @@ async function main() {
         const parsed: Paint[] = products.map((p: any) => ({
           brand: "AK Interactive",
           name: String(p.title ?? p.name ?? "").trim(),
-          paintType: "3rd-gen",
+          paintType: "3rd-gen" as PaintType,
           brandCode: p.sku ?? p.variants?.[0]?.sku,
         })).filter((p) => p.name);
         if (parsed.length > 0) {

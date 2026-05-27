@@ -10,8 +10,10 @@ function sanitizeName(name: string): string {
 }
 
 async function downloadImage(url: string, dest: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: controller.signal });
     if (!res.ok) {
       console.warn(`  download failed (${res.status}): ${url}`);
       return false;
@@ -20,8 +22,14 @@ async function downloadImage(url: string, dest: string): Promise<boolean> {
     writeFileSync(dest, Buffer.from(buf));
     return true;
   } catch (e) {
-    console.warn(`  download error: ${e}`);
+    if (e instanceof Error && e.name === "AbortError") {
+      console.warn(`  download timed out: ${url}`);
+    } else {
+      console.warn(`  download error: ${e}`);
+    }
     return false;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -31,7 +39,13 @@ async function processBrand(brand: string): Promise<void> {
     console.warn(`[${brand}] scraped file not found, skipping`);
     return;
   }
-  const paints: Paint[] = JSON.parse(readFileSync(scrapedPath, "utf8"));
+  let paints: Paint[];
+  try {
+    paints = JSON.parse(readFileSync(scrapedPath, "utf8"));
+  } catch (err) {
+    console.error(`[${brand}] failed to parse scraped file:`, err);
+    return;
+  }
   const imagesDir = resolve(process.cwd(), "data", "images", brand);
   mkdirSync(imagesDir, { recursive: true });
 
@@ -61,7 +75,7 @@ async function processBrand(brand: string): Promise<void> {
       enriched.push(paint);
       continue;
     }
-    const hex = await extractHex(dest, { name: paint.name, brand: paint.brand });
+    const hex = await extractHex(dest, { name: paint.name, brand: paint.brand, imageUrl: paint.imageUrl });
     if (hex) {
       console.log(`[${brand}] ${paint.name}: hex ${hex}`);
       enriched.push({ ...paint, hexColor: hex });

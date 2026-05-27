@@ -6,7 +6,7 @@
 // the canonical seed. Live scraping is attempted but the kimerakolors.com
 // shop is JS-rendered.
 
-import { Paint, tryFetch, writeScraped } from "./_common";
+import { Paint, PaintType, tryFetch, writeScraped } from "./_common";
 
 const SOURCE_URL = "https://kimerakolors.com/products.json?limit=250";
 
@@ -58,7 +58,7 @@ async function main() {
         const parsed: Paint[] = products.map((p: any) => ({
           brand: "Kimera Colors",
           name: String(p.title ?? p.name ?? "").trim(),
-          paintType: "pure-pigment",
+          paintType: "pure-pigment" as PaintType,
           brandCode: p.variants?.[0]?.sku ?? p.sku ?? undefined,
           imageUrl: p.images?.[0]?.src || undefined,
         })).filter((p) => p.name);

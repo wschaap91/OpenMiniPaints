@@ -2,7 +2,7 @@ import { internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 
 // ---------------------------------------------------------------------------
-// Paint upsert helpers — used by import/scrape scripts (ticket #3)
+// Paint upsert helpers — used by scripts/import.ts
 // ---------------------------------------------------------------------------
 
 const paintArgs = {
@@ -27,8 +27,8 @@ export const upsertPaint = internalMutation({
   handler: async (ctx, args) => {
     const existing = await ctx.db
       .query("catalogPaints")
-      .filter((q) =>
-        q.and(q.eq(q.field("brand"), args.brand), q.eq(q.field("name"), args.name)),
+      .withIndex("by_brand_name", (q) =>
+        q.eq("brand", args.brand).eq("name", args.name),
       )
       .first();
 
@@ -56,11 +56,8 @@ export const bulkImport = internalMutation({
     for (const paint of paints) {
       const existing = await ctx.db
         .query("catalogPaints")
-        .filter((q) =>
-          q.and(
-            q.eq(q.field("brand"), paint.brand),
-            q.eq(q.field("name"), paint.name),
-          ),
+        .withIndex("by_brand_name", (q) =>
+          q.eq("brand", paint.brand).eq("name", paint.name),
         )
         .first();
 

@@ -4,7 +4,7 @@
 // as /products/<handle>.json. Live scraping is attempted; falls back to a
 // curated Pro Acryl seed sample.
 
-import { Paint, tryFetch, writeScraped } from "./_common";
+import { Finish, Paint, PaintType, tryFetch, writeScraped } from "./_common";
 
 const SOURCE_URL = "https://monumenthobbies.com/collections/pro-acryl/products.json?limit=250";
 
@@ -41,10 +41,10 @@ async function main() {
         const paints: Paint[] = products.map((p: any) => ({
           brand: "Pro Acryl",
           name: String(p.title ?? "").replace(/^Pro Acryl\s*[-—]?\s*/i, "").trim(),
-          paintType: "acrylic",
+          paintType: "acrylic" as PaintType,
           brandCode: p.variants?.[0]?.sku,
           barcode: p.variants?.[0]?.barcode,
-          finish: "matte",
+          finish: "matte" as Finish,
           imageUrl: p.images?.[0]?.src || undefined,
         })).filter((p) => p.name);
         if (paints.length > 0) {

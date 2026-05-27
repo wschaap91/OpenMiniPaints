@@ -5,7 +5,7 @@
 // `assets/data/paints.json` style payloads but the URL is not stable.
 // For now we attempt a fetch then fall back to a curated seed sample.
 
-import { Paint, tryFetch, writeScraped } from "./_common";
+import { Paint, PaintType, tryFetch, writeScraped } from "./_common";
 
 const SOURCE_URL =
   "https://www.warhammer.com/app/resources/catalog/product/citadel-colour-paints.json";
@@ -90,7 +90,7 @@ async function main() {
         const paints: Paint[] = data.map((row: any) => ({
           brand: "Citadel",
           name: String(row.name ?? row.title ?? "").trim(),
-          paintType: String(row.type ?? row.category ?? "base").toLowerCase(),
+          paintType: String(row.type ?? row.category ?? "base").toLowerCase() as PaintType,
           hexColor: row.hex ?? row.color,
           brandCode: row.code ?? row.sku,
           barcode: row.barcode ?? row.ean,
