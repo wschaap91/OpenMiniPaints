@@ -47,12 +47,13 @@ async function main() {
           paintType: "warpaints-fanatic",
           brandCode: p.variants?.[0]?.sku ?? undefined,
           barcode: p.variants?.[0]?.barcode ?? undefined,
+          imageUrl: p.images?.[0]?.src || undefined,
           // hexColor, finish, transparency, specialType are not available from
           // the Shopify products.json API — omitted intentionally.
         })).filter((p) => p.name);
         if (paints.length > 0) {
           writeScraped("army-painter", paints, "live");
-          return;
+          process.exit(0);
         }
       }
     } catch {

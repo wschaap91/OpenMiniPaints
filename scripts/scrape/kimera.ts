@@ -8,7 +8,7 @@
 
 import { Paint, tryFetch, writeScraped } from "./_common";
 
-const SOURCE_URL = "https://kimerakolors.com/shop/";
+const SOURCE_URL = "https://kimerakolors.com/products.json?limit=250";
 
 const SEED: Paint[] = [
   // The 12 pure pigment "Kolors"
@@ -59,11 +59,12 @@ async function main() {
           brand: "Kimera Colors",
           name: String(p.title ?? p.name ?? "").trim(),
           paintType: "pure-pigment",
-          brandCode: p.variants?.[0]?.sku ?? p.sku,
+          brandCode: p.variants?.[0]?.sku ?? p.sku ?? undefined,
+          imageUrl: p.images?.[0]?.src || undefined,
         })).filter((p) => p.name);
         if (parsed.length > 0) {
           writeScraped("kimera", parsed, "live");
-          return;
+          process.exit(0);
         }
       }
     } catch {

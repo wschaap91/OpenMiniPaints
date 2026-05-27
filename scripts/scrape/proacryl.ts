@@ -45,10 +45,11 @@ async function main() {
           brandCode: p.variants?.[0]?.sku,
           barcode: p.variants?.[0]?.barcode,
           finish: "matte",
+          imageUrl: p.images?.[0]?.src || undefined,
         })).filter((p) => p.name);
         if (paints.length > 0) {
           writeScraped("proacryl", paints, "live");
-          return;
+          process.exit(0);
         }
       }
     } catch {
