@@ -1,6 +1,3 @@
-"use node";
-
-import { createHash } from "node:crypto";
 import { httpAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
@@ -23,6 +20,19 @@ type Paint = {
 };
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** SHA-256 using the Web Crypto API — available in all Convex runtimes. */
+async function sha256Hex(str: string): Promise<string> {
+  const data = new TextEncoder().encode(str);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// ---------------------------------------------------------------------------
 // API key validation
 // ---------------------------------------------------------------------------
 
@@ -32,7 +42,7 @@ async function validateApiKey(
 ): Promise<boolean> {
   const key = request.headers.get("x-api-key");
   if (!key) return false;
-  const keyHash = createHash("sha256").update(key).digest("hex");
+  const keyHash = await sha256Hex(key);
   const record = await ctx.runQuery(internal.apiKeys.getByHash, { keyHash });
   if (!record) return false;
   if (record.revokedAt !== undefined) return false;
