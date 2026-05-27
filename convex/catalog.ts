@@ -1,5 +1,4 @@
 import { createHash } from "crypto";
-import { httpRouter } from "convex/server";
 import { httpAction, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
@@ -90,29 +89,32 @@ export const listPaints = internalQuery({
     cursor: v.optional(v.string()),
   },
   handler: async (ctx, { brand, paintType, cursor }) => {
-    let query = ctx.db.query("catalogPaints");
-
-    // Apply in-memory filters after paginate (Convex doesn't support
-    // filter + paginate together on non-indexed fields in all versions,
-    // so we paginate first and note this limitation)
-    const page = await query.paginate({
-      numItems: 50,
-      cursor: cursor ?? null,
-    });
-
-    let results = page.page as Paint[];
+    // Collect all matching documents to get a semantically correct total count.
+    // For ~400-500 paints this is acceptable.
+    let all = await ctx.db.query("catalogPaints").collect() as Paint[];
 
     if (brand) {
-      results = results.filter((p) => p.brand === brand);
+      all = all.filter((p) => p.brand === brand);
     }
     if (paintType) {
-      results = results.filter((p) => p.paintType === paintType);
+      all = all.filter((p) => p.paintType === paintType);
     }
 
+    const total = all.length;
+    const PAGE_SIZE = 50;
+
+    // Decode cursor as an index into the filtered array.
+    const startIndex = cursor ? parseInt(cursor, 10) : 0;
+    const page = all.slice(startIndex, startIndex + PAGE_SIZE);
+    const nextIndex = startIndex + page.length;
+    const isDone = nextIndex >= total;
+    const continueCursor = isDone ? null : String(nextIndex);
+
     return {
-      results,
-      isDone: page.isDone,
-      continueCursor: page.continueCursor,
+      results: page,
+      total,
+      isDone,
+      continueCursor,
     };
   },
 });
@@ -142,110 +144,86 @@ export const lookupPaint = internalQuery({
 });
 
 // ---------------------------------------------------------------------------
-// HTTP router
+// HTTP action handlers (exported for use in http.ts)
 // ---------------------------------------------------------------------------
 
-const http = httpRouter();
+export const handleSearch = httpAction(async (ctx, request) => {
+  if (!(await validateApiKey(ctx, request))) return unauthorizedResponse();
 
-// GET /search?q=&brand=
-http.route({
-  path: "/search",
-  method: "GET",
-  handler: httpAction(async (ctx, request) => {
-    if (!(await validateApiKey(ctx, request))) return unauthorizedResponse();
+  const url = new URL(request.url);
+  const q = url.searchParams.get("q") ?? "";
+  const brand = url.searchParams.get("brand") ?? undefined;
 
-    const url = new URL(request.url);
-    const q = url.searchParams.get("q") ?? "";
-    const brand = url.searchParams.get("brand") ?? undefined;
+  if (!q.trim()) {
+    return jsonResponse({ error: "Missing required query param: q" }, 400);
+  }
 
-    if (!q.trim()) {
-      return jsonResponse({ error: "Missing required query param: q" }, 400);
-    }
+  const paints = (await ctx.runQuery(internal.catalog.searchPaints, {
+    q,
+    brand,
+  })) as Paint[];
 
-    const paints = (await ctx.runQuery(internal.catalog.searchPaints, {
-      q,
-      brand,
-    })) as Paint[];
+  // Group by brand
+  const grouped: Record<string, Paint[]> = {};
+  for (const paint of paints) {
+    if (!grouped[paint.brand]) grouped[paint.brand] = [];
+    grouped[paint.brand].push(paint);
+  }
 
-    // Group by brand
-    const grouped: Record<string, Paint[]> = {};
-    for (const paint of paints) {
-      if (!grouped[paint.brand]) grouped[paint.brand] = [];
-      grouped[paint.brand].push(paint);
-    }
-
-    return jsonResponse({ results: grouped, total: paints.length });
-  }),
+  return jsonResponse({ results: grouped, total: paints.length });
 });
 
-// GET /brands
-http.route({
-  path: "/brands",
-  method: "GET",
-  handler: httpAction(async (ctx, request) => {
-    if (!(await validateApiKey(ctx, request))) return unauthorizedResponse();
+export const handleBrands = httpAction(async (ctx, request) => {
+  if (!(await validateApiKey(ctx, request))) return unauthorizedResponse();
 
-    const brands = await ctx.runQuery(internal.catalog.listBrands, {});
-    const total = brands.reduce((sum, b) => sum + b.count, 0);
+  const brands = await ctx.runQuery(internal.catalog.listBrands, {});
+  const total = brands.reduce((sum, b) => sum + b.count, 0);
 
-    return jsonResponse({ results: brands, total });
-  }),
+  return jsonResponse({ results: brands, total });
 });
 
-// GET /paints?brand=&type=&cursor=
-http.route({
-  path: "/paints",
-  method: "GET",
-  handler: httpAction(async (ctx, request) => {
-    if (!(await validateApiKey(ctx, request))) return unauthorizedResponse();
+export const handlePaints = httpAction(async (ctx, request) => {
+  if (!(await validateApiKey(ctx, request))) return unauthorizedResponse();
 
-    const url = new URL(request.url);
-    const brand = url.searchParams.get("brand") ?? undefined;
-    const paintType = url.searchParams.get("type") ?? undefined;
-    const cursor = url.searchParams.get("cursor") ?? undefined;
+  const url = new URL(request.url);
+  const brand = url.searchParams.get("brand") ?? undefined;
+  const paintType = url.searchParams.get("type") ?? undefined;
+  const cursor = url.searchParams.get("cursor") ?? undefined;
 
-    const result = (await ctx.runQuery(internal.catalog.listPaints, {
-      brand,
-      paintType,
-      cursor,
-    })) as { results: Paint[]; isDone: boolean; continueCursor: string };
+  const result = (await ctx.runQuery(internal.catalog.listPaints, {
+    brand,
+    paintType,
+    cursor,
+  })) as { results: Paint[]; total: number; isDone: boolean; continueCursor: string | null };
 
-    return jsonResponse({
-      results: result.results,
-      total: result.results.length,
-      cursor: result.isDone ? undefined : result.continueCursor,
-    });
-  }),
+  return jsonResponse({
+    results: result.results,
+    total: result.total,
+    cursor: result.isDone ? undefined : result.continueCursor,
+  });
 });
 
-// GET /lookup?code=&barcode=
-http.route({
-  path: "/lookup",
-  method: "GET",
-  handler: httpAction(async (ctx, request) => {
-    if (!(await validateApiKey(ctx, request))) return unauthorizedResponse();
+export const handleLookup = httpAction(async (ctx, request) => {
+  if (!(await validateApiKey(ctx, request))) return unauthorizedResponse();
 
-    const url = new URL(request.url);
-    const code = url.searchParams.get("code") ?? undefined;
-    const barcode = url.searchParams.get("barcode") ?? undefined;
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code") ?? undefined;
+  const barcode = url.searchParams.get("barcode") ?? undefined;
 
-    if (!code && !barcode) {
-      return jsonResponse(
-        { error: "At least one of code or barcode is required" },
-        400,
-      );
-    }
+  if (!code && !barcode) {
+    return jsonResponse(
+      { error: "At least one of code or barcode is required" },
+      400,
+    );
+  }
 
-    const paint = (await ctx.runQuery(internal.catalog.lookupPaint, {
-      code,
-      barcode,
-    })) as Paint | null;
+  const paint = (await ctx.runQuery(internal.catalog.lookupPaint, {
+    code,
+    barcode,
+  })) as Paint | null;
 
-    return jsonResponse({
-      results: paint,
-      total: paint ? 1 : 0,
-    });
-  }),
+  return jsonResponse({
+    results: paint ? [paint] : [],
+    total: paint ? 1 : 0,
+  });
 });
-
-export default http;
