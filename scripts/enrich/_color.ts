@@ -40,7 +40,8 @@ async function visionFallback(
 ): Promise<string | null> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    throw new Error("ANTHROPIC_API_KEY environment variable is required");
+    console.warn(`  [vision] ANTHROPIC_API_KEY not set — skipping Vision fallback for ${context.name}`);
+    return null;
   }
 
   const client = new Anthropic({ apiKey });

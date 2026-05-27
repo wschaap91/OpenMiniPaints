@@ -33,6 +33,8 @@ function pickFile(brand: string): string | null {
   return null;
 }
 
+const BATCH_SIZE = 50;
+
 function importBrand(brand: string) {
   const file = pickFile(brand);
   if (!file) {
@@ -51,27 +53,33 @@ function importBrand(brand: string) {
     return;
   }
 
-  const args = JSON.stringify({ paints });
-  const cliArgs = ["convex", "run", "admin:bulkImport", args];
-  if (useProd) cliArgs.push("--prod");
+  let totalInserted = 0;
+  let totalUpdated = 0;
 
-  const res = spawnSync("npx", cliArgs, { encoding: "utf-8" });
-  if (res.status !== 0) {
-    console.error(
-      `${brand}: convex run failed (code ${res.status})\n${res.stderr || res.stdout}`,
-    );
-    return;
+  // Split into batches to stay within Convex's 32k document-read limit
+  for (let i = 0; i < paints.length; i += BATCH_SIZE) {
+    const batch = paints.slice(i, i + BATCH_SIZE);
+    const args = JSON.stringify({ paints: batch });
+    const cliArgs = ["convex", "run", "admin:bulkImport", args];
+    if (useProd) cliArgs.push("--prod");
+
+    const res = spawnSync("npx", cliArgs, { encoding: "utf-8" });
+    if (res.status !== 0) {
+      console.error(
+        `${brand}: convex run failed (batch ${Math.floor(i / BATCH_SIZE) + 1}, code ${res.status})\n${res.stderr || res.stdout}`,
+      );
+      return;
+    }
+    try {
+      const parsed = JSON.parse((res.stdout || "").trim());
+      totalInserted += parsed.inserted ?? 0;
+      totalUpdated += parsed.updated ?? 0;
+    } catch {
+      // keep going — count will just be 0 for this batch
+    }
   }
-  // `npx convex run` prints the mutation return value as JSON on stdout.
-  const out = (res.stdout || "").trim();
-  let summary = out;
-  try {
-    const parsed = JSON.parse(out);
-    summary = `${parsed.inserted} inserted, ${parsed.updated} updated, ${parsed.total} total`;
-  } catch {
-    // keep raw output
-  }
-  console.log(`${brand}: ${summary} (from ${file.split("/").slice(-2).join("/")})`);
+
+  console.log(`${brand}: ${totalInserted} inserted, ${totalUpdated} updated, ${paints.length} total (from ${file.split("/").slice(-2).join("/")})`);
 }
 
 for (const brand of BRANDS) {
