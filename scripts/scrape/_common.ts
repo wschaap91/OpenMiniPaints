@@ -18,6 +18,7 @@ export interface Paint {
   transparency?: string;
   finish?: string;
   specialType?: string;
+  imageUrl?: string;
 }
 
 export const FETCH_TIMEOUT_MS = 10_000;
@@ -55,7 +56,11 @@ export function writeScraped(slug: string, paints: Paint[], source: "live" | "se
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, JSON.stringify(paints, null, 2));
   const brand = paints[0]?.brand ?? slug;
+  const withImageUrl = paints.filter((p) => p.imageUrl != null).length;
+  const withHexColor = paints.filter((p) => p.hexColor != null).length;
   console.log(
-    `${brand}: ${paints.length} paints written to data/scraped/${slug}.json (source: ${source})`,
+    `${brand}: ${paints.length} paints written to data/scraped/${slug}.json` +
+      ` (${withImageUrl} with imageUrl, ${withHexColor} with hexColor)` +
+      ` (source: ${source})`,
   );
 }
