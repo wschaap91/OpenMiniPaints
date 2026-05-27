@@ -1,6 +1,6 @@
 ---
 version: 1
-status: draft
+status: built
 date: 2026-05-27
 author: Wouter Schaap
 previous: null
