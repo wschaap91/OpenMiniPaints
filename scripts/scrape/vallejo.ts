@@ -83,10 +83,12 @@ async function main() {
           const name = m.replace(/<[^>]+>/g, "").trim();
           return { brand: "Vallejo", name, paintType: "model-color" };
         }).filter((p) => p.name);
-        if (parsed.length > 0) {
-          writeScraped("vallejo", parsed, "live");
+        const usable = parsed.filter((p) => p.hexColor);
+        if (usable.length > 0) {
+          writeScraped("vallejo", usable, "live");
           return;
         }
+        // Live data has no hex colors — fall through to seed
       }
     } catch {
       // parsing failed
