@@ -1,0 +1,65 @@
+/**
+ * Generate a new API key and register it in the Convex database.
+ *
+ * Usage:
+ *   npx tsx scripts/generate-key.ts <label>
+ *
+ * The raw key is printed ONCE. Store it securely — it cannot be recovered.
+ * The database stores only a SHA-256 hash.
+ *
+ * Prerequisites:
+ *   1. Run `npx convex dev --configure new --project open-mini-paints` to link the project.
+ *   2. Ensure CONVEX_DEPLOY_KEY is set (exported from the Convex dashboard → Settings → Deploy Key).
+ *      The key is used by `convex run` to call the internal mutation.
+ *
+ * How it works:
+ *   This script generates the raw key + hash locally, then delegates the
+ *   database insert to `npx convex run apiKeys:createKey` which can call
+ *   internal Convex mutations via the admin API.
+ */
+
+import { createHash, randomBytes } from "node:crypto";
+import { execSync } from "node:child_process";
+
+async function main() {
+  const label = process.argv[2];
+  if (!label) {
+    console.error("Usage: npx tsx scripts/generate-key.ts <label>");
+    process.exit(1);
+  }
+
+  // Generate a cryptographically secure 32-byte random key.
+  const rawKey = randomBytes(32).toString("hex");
+
+  // Hash the key for storage — we never store the raw value.
+  const keyHash = createHash("sha256").update(rawKey).digest("hex");
+
+  // Call the internal Convex mutation via the CLI.
+  // `convex run` supports internal functions when CONVEX_DEPLOY_KEY is set.
+  const args = JSON.stringify({ keyHash, label });
+  try {
+    execSync(`npx convex run apiKeys:createKey '${args}'`, {
+      stdio: "inherit",
+      env: { ...process.env },
+    });
+  } catch (err) {
+    console.error(
+      "\nFailed to insert key into Convex. Make sure:\n" +
+        "  • You have run `npx convex dev --configure new --project open-mini-paints`\n" +
+        "  • CONVEX_DEPLOY_KEY is set in your environment\n"
+    );
+    process.exit(1);
+  }
+
+  console.log("\n========================================");
+  console.log("  API key generated for:", label);
+  console.log("========================================");
+  console.log("\n  Key (save this — it will NOT be shown again):");
+  console.log("\n  " + rawKey);
+  console.log("\n========================================\n");
+}
+
+main().catch((err) => {
+  console.error("Fatal:", err);
+  process.exit(1);
+});
