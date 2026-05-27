@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/wschaap91/OpenMiniPaints/schema/paint-range.schema.json",
+  "title": "Paint Range",
+  "description": "A named range of miniature paints from a single manufacturer",
+  "type": "object",
+  "required": ["brand", "range", "rangeCode", "source", "paints"],
+  "properties": {
+    "brand": { "type": "string", "examples": ["Vallejo", "Citadel", "Army Painter"] },
+    "range": { "type": "string", "examples": ["Game Color", "Model Color", "Xpress Color"] },
+    "rangeCode": { "type": "string", "examples": ["GC", "MC", "XC"] },
+    "source": {
+      "type": "object",
+      "required": ["type", "url", "extractedAt"],
+      "properties": {
+        "type": { "type": "string", "enum": ["pdf", "web", "manual"] },
+        "url": { "type": "string" },
+        "extractedAt": { "type": "string" },
+        "notes": { "type": "string" }
+      }
+    },
+    "paints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "name"],
+        "properties": {
+          "code": { "type": "string", "examples": ["72.001", "70.950"] },
+          "name": { "type": "string" },
+          "hex": {
+            "type": ["string", "null"],
+            "pattern": "^#[0-9a-f]{6}$",
+            "description": "Approximate hex extracted from official color chart PDF"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["standard", "metallic", "fluorescent", "wash", "contrast", "medium", "varnish", "special-fx"]
+          },
+          "finish": { "type": "string", "enum": ["matte", "satin", "gloss", "metallic"] },
+          "transparency": { "type": "string", "enum": ["opaque", "semi-transparent", "transparent"] },
+          "discontinued": { "type": "boolean", "default": false },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}
