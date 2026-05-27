@@ -8,7 +8,9 @@
     "generate-key": "tsx scripts/generate-key.ts"
   },
   "dependencies": {
-    "convex": "^1.17.0"
+    "@anthropic-ai/sdk": "^0.99.0",
+    "convex": "^1.17.0",
+    "node-vibrant": "^4.0.4"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
