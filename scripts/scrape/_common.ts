@@ -27,10 +27,7 @@ export type PaintType =
   | "black"
   | "acrylic"
   | "warpaints-fanatic"
-  | "speedpaint"
-  | "wash"
-  | "effects"
-  | "set";
+  | "speedpaint";
 
 export type Finish = "matte" | "satin" | "metallic";
 
@@ -49,7 +46,6 @@ export interface Paint {
   finish?: Finish;
   specialType?: SpecialType;
   imageUrl?: string;
-  range?: string;
 }
 
 export const FETCH_TIMEOUT_MS = 10_000;
