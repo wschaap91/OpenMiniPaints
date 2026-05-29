@@ -30,3 +30,18 @@ Review findings that scored 50-79 — real but below the noise threshold. These 
 | Score | File | Finding | Suggestion |
 |-------|------|---------|------------|
 | 52 | scripts/import.ts:59 | Comment says "stay within Convex's 32k document-read limit" but actual reason is per-mutation argument size and execution time budget | Rewrite: `// Split into batches to stay within Convex's per-mutation argument size and execution time limits.` |
+
+## PR #23 — fix: PRD v2 deferred quality fixes — error logging and flag validation (2026-05-29)
+
+### Pattern: silent-failure-hunter (2 findings)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 70 | scripts/scrape/army-painter.ts:59-61 | `console.warn` writes to stdout not stderr — CI/CD pipelines routing stderr to alerting channels will miss this; process exits 0 on seed fallback so automation can't distinguish live scrape from degraded run | Use `console.error` so the message lands on stderr |
+| 70 | scripts/scrape/proacryl.ts:55-57 | Same as army-painter — `console.warn` to stdout, exit 0 on seed fallback | Use `console.error` so the message lands on stderr |
+
+### Pattern: code-simplifier (1 finding)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 50 | scripts/enrich/hex-extractor.ts:96-108 | `brandIdx !== -1` checked 3 times across 5 lines; `as string` cast and `!` non-null assertion needed only because `brandArg` is declared in outer scope before guard exits | Collapse into single `if (brandIdx !== -1)` block — declare `brandArg` inside, `let brands = KNOWN_BRANDS` outside; eliminates cast, assertion, and repeated sentinel |
