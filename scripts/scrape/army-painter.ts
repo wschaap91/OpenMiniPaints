@@ -24,6 +24,7 @@ const RANGE_PREFIX_MAP: Array<{
   { prefix: "Warpaints Fanatic Effects",  range: "Warpaints Fanatic Effects",  paintType: "effects"  },
   { prefix: "Warpaints Fanatic Wash",     range: "Warpaints Fanatic Wash",     paintType: "wash"     },
   { prefix: "Warpaints Fanatic",          range: "Warpaints Fanatic",          paintType: "acrylic"  },
+  { prefix: "Speedpaint 2.0",            range: "Speedpaint 2.0",            paintType: "speedpaint" },
   { prefix: "John Blanche Masterclass",   range: "John Blanche Masterclass",   paintType: "acrylic"  },
   { prefix: "Flexible Triad",             range: "Flexible Triad",             paintType: "set"      },
   { prefix: "Historical",                 range: "Historical",                 paintType: "acrylic"  },
