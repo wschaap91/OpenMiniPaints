@@ -13,6 +13,7 @@ export default defineSchema({
     finish: v.optional(v.string()),
     specialType: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
+    range: v.optional(v.string()),
   }).searchIndex("by_name_brand", {
     searchField: "name",
     filterFields: ["brand"],
@@ -20,7 +21,8 @@ export default defineSchema({
   .index("by_barcode", ["barcode"])
   .index("by_brandCode", ["brandCode"])
   .index("by_brand_name", ["brand", "name"])
-  .index("by_brand", ["brand"]),
+  .index("by_brand", ["brand"])
+  .index("by_brand_range", ["brand", "range"]),
 
   apiKeys: defineTable({
     keyHash: v.string(),

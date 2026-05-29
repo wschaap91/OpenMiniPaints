@@ -1,6 +1,6 @@
 # OpenMiniPaints — Spec
 
-Last updated: 2026-05-27 (after PRD v1 cycle)
+Last updated: 2026-05-29 (after PR #22)
 
 ## Architecture
 
@@ -24,17 +24,18 @@ Backend-only REST API. No frontend or client app. Two layers: a Convex Cloud bac
 {
   brand: string
   name: string
-  paintType: PaintType   // union of 19 known values
+  paintType: PaintType   // union of 22 known values
   hexColor?: string      // e.g. "#231f20"
   brandCode?: string
   barcode?: string       // EAN
+  range?: string
   transparency?: "translucent" | "transparent"
   finish?: "matte" | "satin" | "metallic"
   specialType?: "metallic"
   imageUrl?: string
 }
 ```
-Indexes: `by_name_brand` (search, filter: `brand`), `by_barcode`, `by_brandCode`, `by_brand_name` (upsert key), `by_brand` (paginated listing)
+Indexes: `by_name_brand` (search, filter: `brand`), `by_barcode`, `by_brandCode`, `by_brand_name` (upsert key), `by_brand` (paginated listing), `by_brand_range`
 
 **`apiKeys`**
 ```ts
@@ -75,7 +76,7 @@ Error shape: `{ error: string }` with appropriate HTTP status.
 
 ## Key Patterns
 
-**Scraper pattern**: each brand script defines `SOURCE_URL` + `SEED: Paint[]`. Live fetch with 10s timeout via `tryFetch()`; falls back to seed on failure. Output written to `data/scraped/<brand>.json` via `writeScraped()`.
+**Scraper pattern**: each brand script defines `SOURCE_URL` + `SEED: Paint[]`. Live fetch with 10s timeout via `tryFetch()`; falls back to seed on failure. Output written to `data/scraped/<brand>.json` via `writeScraped()`. Variant: the Army Painter scraper additionally runs raw Shopify product titles through `extractRangeFromName()`, which uses a `RANGE_PREFIX_MAP` (8 entries) to derive a clean `name`, `range`, and `paintType` from the title prefix.
 
 **Hex enrichment (two-stage)**:
 1. node-vibrant palette — use if saturation >= 0.15
