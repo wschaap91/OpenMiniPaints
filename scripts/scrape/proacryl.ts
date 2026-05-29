@@ -52,8 +52,8 @@ async function main() {
           process.exit(0);
         }
       }
-    } catch {
-      // fall through
+    } catch (e) {
+      console.warn("[proacryl] live parse failed, using seed:", e);
     }
   }
   writeScraped("proacryl", SEED, "seed");
