@@ -94,12 +94,17 @@ async function processBrand(brand: string): Promise<void> {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const brandIdx = args.indexOf("--brand");
-  const brands = brandIdx !== -1
-    ? [args[brandIdx + 1]]
-    : KNOWN_BRANDS;
+  const brandArg = brandIdx !== -1 ? args[brandIdx + 1] : undefined;
 
-  if (brandIdx !== -1 && !KNOWN_BRANDS.includes(brands[0])) {
-    console.error(`Unknown brand: ${brands[0]}. Known: ${KNOWN_BRANDS.join(", ")}`);
+  if (brandIdx !== -1 && !brandArg) {
+    console.error("--brand requires a value. Known brands: " + KNOWN_BRANDS.join(", "));
+    process.exit(1);
+  }
+
+  const brands = brandIdx !== -1 ? [brandArg as string] : KNOWN_BRANDS;
+
+  if (brandIdx !== -1 && !KNOWN_BRANDS.includes(brandArg!)) {
+    console.error(`Unknown brand: ${brandArg}. Known: ${KNOWN_BRANDS.join(", ")}`);
     process.exit(1);
   }
 

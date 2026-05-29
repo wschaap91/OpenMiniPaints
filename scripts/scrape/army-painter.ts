@@ -130,8 +130,8 @@ async function main() {
           process.exit(0);
         }
       }
-    } catch {
-      // fall through
+    } catch (e) {
+      console.warn("[army-painter] live parse failed, using seed:", e);
     }
   }
   writeScraped("army-painter", SEED, "seed");
