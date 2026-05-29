@@ -16,6 +16,7 @@ const paintArgs = {
   finish: v.optional(v.string()),
   specialType: v.optional(v.string()),
   imageUrl: v.optional(v.string()),
+  range: v.optional(v.string()),
 };
 
 /**
