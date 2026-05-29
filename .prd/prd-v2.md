@@ -30,3 +30,11 @@ Review findings that scored 50-79 — real but below the noise threshold. These 
 | Score | File | Finding | Suggestion |
 |-------|------|---------|------------|
 | 52 | scripts/import.ts:59 | Comment says "stay within Convex's 32k document-read limit" but actual reason is per-mutation argument size and execution time budget | Rewrite: `// Split into batches to stay within Convex's per-mutation argument size and execution time limits.` |
+
+## PR #23 — fix: PRD v2 deferred quality fixes — error logging and flag validation (2026-05-29)
+
+### Pattern: code-simplifier (1 finding)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 50 | scripts/enrich/hex-extractor.ts:96-108 | `brandIdx !== -1` checked 3 times across 5 lines; `as string` cast and `!` non-null assertion needed only because `brandArg` is declared in outer scope before guard exits | Collapse into single `if (brandIdx !== -1)` block — declare `brandArg` inside, `let brands = KNOWN_BRANDS` outside; eliminates cast, assertion, and repeated sentinel |
